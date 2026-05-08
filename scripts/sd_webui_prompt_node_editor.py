@@ -6,6 +6,7 @@ import yaml
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+import modules.infotext_utils as parameters_copypaste
 from modules import script_callbacks
 
 TAGS_DIR = os.path.join(os.path.dirname(__file__), "..", "tags")
@@ -36,9 +37,23 @@ def on_app_started(_gr_app, app: FastAPI):
 
 def on_ui_tabs() -> list[tuple[gr.Blocks, str, str]]:
     with gr.Blocks(analytics_enabled=False) as block:
-        # TODO: ノードエディタの埋め込み
-        # TODO: Send to txt2img / img2img ボタンの実装
-        pass
+        gr.HTML("""
+            <link rel="stylesheet" href="/file=extensions/sd-webui-prompt-node-editor/javascript/litegraph.css">
+            <canvas id="prompt-node-editor-canvas" width="1200" height="700"
+                    style="border:1px solid #444; background:#1a1a1a; display:block;"></canvas>
+        """)
+
+        prompt_output = gr.Textbox(
+            label="Generated Prompt",
+            elem_id="pne-prompt-output",
+            interactive=False,
+        )
+
+        with gr.Row():
+            gr.Button("📋 Copy Prompt", elem_id="pne-copy-btn")
+            buttons = parameters_copypaste.create_buttons(["txt2img", "img2img"])
+
+        parameters_copypaste.bind_buttons(buttons, None, prompt_output)
 
     return [(block, "Prompts Node Editor", "prompts-node-editor")]
 
