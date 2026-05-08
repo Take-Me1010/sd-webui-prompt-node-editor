@@ -3,12 +3,17 @@
 
 class PromptNode extends LGraphNode {
     constructor() {
-        super();
+        super("Prompt Node");
         this.addInput("prompt", "string");
         this.addOutput("prompt", "string");
-        this.title = "Prompt Node";
         this.color = "#2a3a4a";
         this.bgcolor = "#1a2a3a";
+
+        /**
+         * HACK: 型宣言のみ行う。
+         * @type {import("litegraph.js").IToggleWidget[]}
+        */
+        this.widgets
     }
 
     /** @param {string[]} tags */
@@ -30,7 +35,7 @@ class PromptNode extends LGraphNode {
     onExecute() {
         const input = this.getInputData(0) ?? "";
         const selected = this.widgets
-            .filter(w => w.value === true)
+            .filter(w => w.value)
             .map(w => w.name);
         const output = selected.length > 0
             ? (input ? input + ", " + selected.join(", ") : selected.join(", "))

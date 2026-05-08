@@ -8,12 +8,6 @@ import type {
     IWidget,
 } from "litegraph.js";
 
-declare module "litegraph.js" {
-    interface LGraphNode {
-        widgets: IWidget[];
-    }
-}
-
 declare global {
     var LGraph: typeof _LGraph;
     var LGraphCanvas: typeof _LGraphCanvas;
