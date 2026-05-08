@@ -98,6 +98,22 @@ onUiLoaded(() => {
 
     window._pneGetPrompt = () => graph.findNodesByType("prompt/OutputNode")[0]?._prompt ?? "";
 
+    // 親要素のサイズ変化に追従してcanvasを動的リサイズ
+    const CANVAS_HEIGHT = 700;
+    canvasEl.height = CANVAS_HEIGHT;
+    const container = canvasEl.parentElement;
+    if (container) {
+        const syncSize = () => {
+            const w = container.clientWidth;
+            if (w > 0 && canvasEl.width !== w) {
+                canvasEl.width = w;
+                canvas.resize(w, CANVAS_HEIGHT);
+            }
+        };
+        syncSize();
+        new ResizeObserver(syncSize).observe(container);
+    }
+
     setupButtons();
 
     fetch("/sd-webui-prompt-node-editor/node-definitions")
