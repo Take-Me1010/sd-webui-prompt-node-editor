@@ -44,6 +44,27 @@ class PromptNode extends LGraphNode {
     }
 }
 
+class OutputNode extends LGraphNode {
+    constructor() {
+        super("Output");
+        this.addInput("prompt", "string");
+        this._prompt = "";
+        /**@type {import("litegraph.js").Vector2} */
+        this.size = [300, 120];
+        this.color = "#3a2a1a";
+        this.bgcolor = "#2a1a0a";
+        /**
+         * @type {import("litegraph.js").ITextWidget}
+         */
+        this._widget = this.addWidget("text", "prompt", "");
+    }
+
+    onExecute() {
+        this._prompt = this.getInputData(0) ?? "";
+        this._widget.value = this._prompt;
+    }
+}
+
 onUiLoaded(() => {
     const canvasEl = document.getElementById("prompt-node-editor-canvas");
     if (!canvasEl) {
@@ -52,6 +73,7 @@ onUiLoaded(() => {
     }
 
     LiteGraph.registerNodeType("prompt/PromptNode", PromptNode);
+    LiteGraph.registerNodeType("prompt/OutputNode", OutputNode);
 
     const graph = new LGraph();
     const canvas = new LGraphCanvas("#prompt-node-editor-canvas", graph);
@@ -61,6 +83,8 @@ onUiLoaded(() => {
     canvas.render_connections_border = false;
     LiteGraph.node_title_color = "#ccc";
     LiteGraph.DEFAULT_GROUP_FONT_SIZE = 14;
+
+    window._pneGetPrompt = () => graph.findNodesByType("prompt/OutputNode")[0]?._prompt ?? "";
 
     graph.start();
 });
