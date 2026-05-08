@@ -53,33 +53,15 @@ class OutputNode extends LGraphNode {
         this.size = [300, 120];
         this.color = "#3a2a1a";
         this.bgcolor = "#2a1a0a";
+        /**
+         * @type {import("litegraph.js").ITextWidget}
+         */
+        this._widget = this.addWidget("text", "prompt", "");
     }
 
     onExecute() {
         this._prompt = this.getInputData(0) ?? "";
-        this.setDirtyCanvas(true, false);
-    }
-
-    /** @param {CanvasRenderingContext2D} ctx */
-    onDrawForeground(ctx) {
-        if (!this._prompt) return;
-        ctx.fillStyle = "#ddd";
-        ctx.font = "11px Arial";
-        const maxWidth = this.size[0] - 20;
-        const words = this._prompt.split(" ");
-        let line = "";
-        let y = 20;
-        for (const word of words) {
-            const testLine = line ? line + " " + word : word;
-            if (ctx.measureText(testLine).width > maxWidth && line) {
-                ctx.fillText(line, 10, y);
-                line = word;
-                y += 14;
-            } else {
-                line = testLine;
-            }
-        }
-        if (line) ctx.fillText(line, 10, y);
+        this._widget.value = this._prompt;
     }
 }
 
