@@ -5,7 +5,14 @@ import type {
     LGraphGroup as _LGraphGroup,
     LLink as _LLink,
     LiteGraph as _LiteGraph,
+    IWidget,
 } from "litegraph.js";
+
+declare module "litegraph.js" {
+    interface LGraphNode {
+        widgets: IWidget[];
+    }
+}
 
 declare global {
     var LGraph: typeof _LGraph;
