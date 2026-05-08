@@ -44,6 +44,45 @@ class PromptNode extends LGraphNode {
     }
 }
 
+class OutputNode extends LGraphNode {
+    constructor() {
+        super("Output");
+        this.addInput("prompt", "string");
+        this._prompt = "";
+        /**@type {import("litegraph.js").Vector2} */
+        this.size = [300, 120];
+        this.color = "#3a2a1a";
+        this.bgcolor = "#2a1a0a";
+    }
+
+    onExecute() {
+        this._prompt = this.getInputData(0) ?? "";
+        this.setDirtyCanvas(true, false);
+    }
+
+    /** @param {CanvasRenderingContext2D} ctx */
+    onDrawForeground(ctx) {
+        if (!this._prompt) return;
+        ctx.fillStyle = "#ddd";
+        ctx.font = "11px Arial";
+        const maxWidth = this.size[0] - 20;
+        const words = this._prompt.split(" ");
+        let line = "";
+        let y = 20;
+        for (const word of words) {
+            const testLine = line ? line + " " + word : word;
+            if (ctx.measureText(testLine).width > maxWidth && line) {
+                ctx.fillText(line, 10, y);
+                line = word;
+                y += 14;
+            } else {
+                line = testLine;
+            }
+        }
+        if (line) ctx.fillText(line, 10, y);
+    }
+}
+
 onUiLoaded(() => {
     const canvasEl = document.getElementById("prompt-node-editor-canvas");
     if (!canvasEl) {
@@ -52,6 +91,7 @@ onUiLoaded(() => {
     }
 
     LiteGraph.registerNodeType("prompt/PromptNode", PromptNode);
+    LiteGraph.registerNodeType("prompt/OutputNode", OutputNode);
 
     const graph = new LGraph();
     const canvas = new LGraphCanvas("#prompt-node-editor-canvas", graph);
@@ -61,6 +101,8 @@ onUiLoaded(() => {
     canvas.render_connections_border = false;
     LiteGraph.node_title_color = "#ccc";
     LiteGraph.DEFAULT_GROUP_FONT_SIZE = 14;
+
+    window._pneGetPrompt = () => graph.findNodesByType("prompt/OutputNode")[0]?._prompt ?? "";
 
     graph.start();
 });
