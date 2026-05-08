@@ -36,9 +36,16 @@ def on_app_started(_gr_app, app: FastAPI):
 
 def on_ui_tabs() -> list[tuple[gr.Blocks, str, str]]:
     with gr.Blocks(analytics_enabled=False) as block:
-        # TODO: ノードエディタの埋め込み
-        # TODO: Send to txt2img / img2img ボタンの実装
-        pass
+        gr.HTML("""
+            <link rel="stylesheet" href="/file=extensions/sd-webui-prompt-node-editor/javascript/litegraph.css">
+            <canvas id="prompt-node-editor-canvas" width="1200" height="700"
+                    style="border:1px solid #444; background:#1a1a1a; display:block;"></canvas>
+            <div style="margin-top:8px; display:flex; gap:8px;">
+                <button id="pne-copy-btn" class="gr-button">📋 Copy Prompt</button>
+                <button id="pne-send-txt2img-btn" class="gr-button">→ Send to txt2img</button>
+                <button id="pne-send-img2img-btn" class="gr-button">→ Send to img2img</button>
+            </div>
+        """)
 
     return [(block, "Prompts Node Editor", "prompts-node-editor")]
 
