@@ -1,0 +1,7 @@
+{
+  "name": "sd-webui-prompt-node-editor",
+  "private": true,
+  "devDependencies": {
+    "litegraph.js": "^0.7.18"
+  }
+}
