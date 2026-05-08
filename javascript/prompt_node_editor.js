@@ -19,7 +19,8 @@ class PromptNode extends LGraphNode {
     /** @param {string[]} tags */
     addTags(tags) {
         for (const tag of tags) {
-            this.addWidget("toggle", tag, false, () => {});
+            this.addWidget("toggle", tag, false, () => {
+            });
         }
     }
 
@@ -60,8 +61,19 @@ class OutputNode extends LGraphNode {
     }
 
     onExecute() {
-        this._prompt = this.getInputData(0) ?? "";
-        this._widget.value = this._prompt;
+        const prompt = this.getInputData(0) ?? "";
+        if (prompt === this._prompt) return;
+        this._prompt = prompt;
+        this._widget.value = prompt;
+
+        const textarea = gradioApp().querySelector("#pne-prompt-output textarea");
+        if (textarea) {
+            const setter = Object.getOwnPropertyDescriptor(
+                window.HTMLTextAreaElement.prototype, "value"
+            )?.set;
+            if (setter) setter.call(textarea, prompt);
+            textarea.dispatchEvent(new Event("input", { bubbles: true }));
+        }
     }
 }
 
@@ -86,12 +98,11 @@ onUiLoaded(() => {
 
     window._pneGetPrompt = () => graph.findNodesByType("prompt/OutputNode")[0]?._prompt ?? "";
 
-    graph.start();
     setupButtons();
 
     fetch("/sd-webui-prompt-node-editor/node-definitions")
         .then(r => r.json())
-        .then(defs => buildGraph(graph, defs))
+        .then(defs => buildAmdStartGraph(graph, defs))
         .catch(err => console.error("[PNE] Failed to load node definitions:", err));
 });
 
@@ -149,7 +160,7 @@ function setupButtons() {
  * @param {import("litegraph.js").LGraph} graph
  * @param {{ title: string, tags: string[] }[]} definitions
  */
-async function buildGraph(graph, definitions) {
+async function buildAmdStartGraph(graph, definitions) {
     graph.clear();
     const nodes = [];
 
@@ -173,4 +184,6 @@ async function buildGraph(graph, definitions) {
     if (nodes.length > 0) {
         nodes[nodes.length - 1].connect(0, outputNode, 0);
     }
+
+    graph.start();
 }
