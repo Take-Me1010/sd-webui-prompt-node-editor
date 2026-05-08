@@ -87,6 +87,7 @@ onUiLoaded(() => {
     window._pneGetPrompt = () => graph.findNodesByType("prompt/OutputNode")[0]?._prompt ?? "";
 
     graph.start();
+    setupButtons();
 
     fetch("/sd-webui-prompt-node-editor/node-definitions")
         .then(r => r.json())
@@ -94,8 +95,58 @@ onUiLoaded(() => {
         .catch(err => console.error("[PNE] Failed to load node definitions:", err));
 });
 
+function setupButtons() {
+    const copyBtn = document.getElementById("pne-copy-btn");
+    const txt2imgBtn = document.getElementById("pne-send-txt2img-btn");
+    const img2imgBtn = document.getElementById("pne-send-img2img-btn");
+
+    if (!copyBtn) {
+        console.warn("[PNE] Button #pne-copy-btn not found.");
+    } else {
+        copyBtn.addEventListener("click", () => {
+            const prompt = window._pneGetPrompt();
+            navigator.clipboard.writeText(prompt).then(() => {
+                const original = copyBtn.textContent;
+                copyBtn.textContent = "✅ Copied!";
+                setTimeout(() => { copyBtn.textContent = original; }, 1500);
+            });
+        });
+    }
+
+    /** @param {string} selector */
+    function sendPromptTo(selector) {
+        const prompt = window._pneGetPrompt();
+        const textarea = gradioApp().querySelector(selector);
+        if (!textarea) {
+            console.error("[PNE] Textarea not found:", selector);
+            return;
+        }
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+            window.HTMLTextAreaElement.prototype, "value"
+        )?.set;
+        if (nativeInputValueSetter) nativeInputValueSetter.call(textarea, prompt);
+        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    if (!txt2imgBtn) {
+        console.warn("[PNE] Button #pne-send-txt2img-btn not found.");
+    } else {
+        txt2imgBtn.addEventListener("click", () => {
+            sendPromptTo("#txt2img_prompt textarea");
+        });
+    }
+
+    if (!img2imgBtn) {
+        console.warn("[PNE] Button #pne-send-img2img-btn not found.");
+    } else {
+        img2imgBtn.addEventListener("click", () => {
+            sendPromptTo("#img2img_prompt textarea");
+        });
+    }
+}
+
 /**
- * @param {LGraph} graph
+ * @param {import("litegraph.js").LGraph} graph
  * @param {{ title: string, tags: string[] }[]} definitions
  */
 async function buildGraph(graph, definitions) {
