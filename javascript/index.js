@@ -87,4 +87,39 @@ onUiLoaded(() => {
     window._pneGetPrompt = () => graph.findNodesByType("prompt/OutputNode")[0]?._prompt ?? "";
 
     graph.start();
+
+    fetch("/sd-webui-prompt-node-editor/node-definitions")
+        .then(r => r.json())
+        .then(defs => buildGraph(graph, defs))
+        .catch(err => console.error("[PNE] Failed to load node definitions:", err));
 });
+
+/**
+ * @param {LGraph} graph
+ * @param {{ title: string, tags: string[] }[]} definitions
+ */
+async function buildGraph(graph, definitions) {
+    graph.clear();
+    const nodes = [];
+
+    for (let i = 0; i < definitions.length; i++) {
+        const def = definitions[i];
+        const node = LiteGraph.createNode("prompt/PromptNode");
+        node.title = def.title;
+        node.addTags(def.tags);
+        node.pos = [50 + i * 280, 100];
+        graph.add(node);
+        nodes.push(node);
+    }
+
+    const outputNode = LiteGraph.createNode("prompt/OutputNode");
+    outputNode.pos = [50 + definitions.length * 280, 100];
+    graph.add(outputNode);
+
+    for (let i = 0; i < nodes.length - 1; i++) {
+        nodes[i].connect(0, nodes[i + 1], 0);
+    }
+    if (nodes.length > 0) {
+        nodes[nodes.length - 1].connect(0, outputNode, 0);
+    }
+}
