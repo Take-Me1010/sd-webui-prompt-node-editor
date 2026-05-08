@@ -5,6 +5,7 @@ import type {
     LGraphGroup as _LGraphGroup,
     LLink as _LLink,
     LiteGraph as _LiteGraph,
+    IWidget,
 } from "litegraph.js";
 
 declare global {
