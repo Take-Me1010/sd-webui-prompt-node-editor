@@ -1,0 +1,10 @@
+{
+  "compilerOptions": {
+    "target": "ES2017",
+    "strict": true,
+    "lib": ["ES2017", "DOM"],
+    "allowJs": true,
+
+  },
+  "include": ["src/**/*", "globals.d.ts"]
+}
