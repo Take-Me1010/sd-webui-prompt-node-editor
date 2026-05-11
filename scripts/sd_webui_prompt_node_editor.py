@@ -22,10 +22,10 @@ def load_node_definitions() -> list[dict]:
             data = yaml.safe_load(f) or {}
         for top_key, value in data.items():
             if isinstance(value, list):
-                results.append({"title": top_key, "tags": value})
+                results.append({"title": top_key, "group": top_key, "tags": value})
             elif isinstance(value, dict):
                 for child_key, tags in value.items():
-                    results.append({"title": f"{top_key} / {child_key}", "tags": tags or []})
+                    results.append({"title": f"{top_key} / {child_key}", "group": top_key, "tags": tags or []})
     return results
 
 

@@ -14,5 +14,5 @@ declare global {
     var LGraphNode: typeof _LGraphNode;
     var LGraphGroup: typeof _LGraphGroup;
     var LLink: typeof _LLink;
-    var LiteGraph: _LiteGraph;
+    var LiteGraph: typeof _LiteGraph;
 }
