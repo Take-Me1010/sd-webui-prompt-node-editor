@@ -1,5 +1,4 @@
-import glob
-import os
+from pathlib import Path
 
 import gradio as gr
 import yaml
@@ -9,16 +8,15 @@ from fastapi.responses import JSONResponse
 import modules.infotext_utils as parameters_copypaste
 from modules import script_callbacks
 
-TAGS_DIR = os.path.join(os.path.dirname(__file__), "..", "tags")
+TAGS_DIR = Path(__file__).parent / ".." / "tags"
 
 
 def load_node_definitions() -> list[dict]:
     results = []
-    pattern = os.path.join(TAGS_DIR, "**", "*.y*ml")
-    for path in glob.glob(pattern, recursive=True):
-        if not (path.endswith(".yml") or path.endswith(".yaml")):
+    for path in TAGS_DIR.rglob("*.y*ml"):
+        if path.suffix not in (".yml", ".yaml"):
             continue
-        with open(path, encoding="utf-8") as f:
+        with path.open(encoding="utf-8") as f:
             data = yaml.safe_load(f) or {}
         for top_key, value in data.items():
             if isinstance(value, list):
