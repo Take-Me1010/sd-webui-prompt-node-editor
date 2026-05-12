@@ -85,8 +85,7 @@ const initLiteGraph = () => {
     LiteGraph.registerNodeType("prompt/PromptNode", PromptNode);
     LiteGraph.registerNodeType("prompt/OutputNode", OutputNode);
 
-    LiteGraph.node_title_color = "#ccc";
-    LiteGraph.DEFAULT_GROUP_FONT_SIZE = 14;
+    LiteGraph.NODE_TITLE_COLOR = "#ccc";
 }
 
 class CanvasResizeObserver {
@@ -168,11 +167,6 @@ class PromptNodeEditor {
             m.get(def.group).push(def);
             return m;
         }, new Map());
-        // const categoryMap = new Map();
-        // for (const def of definitions) {
-        //     if (!categoryMap.has(def.group)) categoryMap.set(def.group, []);
-        //     categoryMap.get(def.group).push(def);
-        // }
 
         const categories = [...categoryMap.keys()];
         const maxChainLength = Math.max(...[...categoryMap.values()].map(d => d.length), 0);
