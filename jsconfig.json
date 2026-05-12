@@ -7,5 +7,5 @@
     "module": "nodenext",
     "moduleResolution": "nodenext"
   },
-  "include": ["javascript/**/*.js", "globals.d.ts", "litegraph-globals.d.ts"]
+  "include": ["javascript/**/*.js", "types/*.d.ts"]
 }
