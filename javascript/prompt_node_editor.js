@@ -1,5 +1,4 @@
 // @ts-check
-/// <reference path="../globals.d.ts" />
 
 class PromptNode extends LGraphNode {
     constructor() {
@@ -90,6 +89,44 @@ const initLiteGraph = () => {
     LiteGraph.DEFAULT_GROUP_FONT_SIZE = 14;
 }
 
+class CanvasResizeObserver {
+
+    static CANVAS_HEIGHT = 700;
+    /**
+     * 
+     * @param {import("litegraph.js").LGraphCanvas} canvas
+     */
+    constructor(canvas) {
+        /**@type {import("litegraph.js").LGraphCanvas} */
+        this.canvas = canvas;
+    }
+
+    observe() {
+        const canvasEl = this.canvas.canvas;
+        // 親要素のサイズ変化に追従してcanvasを動的リサイズ
+        canvasEl.height = CanvasResizeObserver.CANVAS_HEIGHT;
+        const container = canvasEl.parentElement;
+        if (container) {
+            const syncSize = () => {
+                const w = container.clientWidth;
+                if (w > 0 && canvasEl.width !== w) {
+                    canvasEl.width = w;
+                    this.canvas.resize(w, CanvasResizeObserver.CANVAS_HEIGHT);
+                }
+            };
+            syncSize();
+            new ResizeObserver(syncSize).observe(container);
+        }
+    }
+}
+
+/**
+ * @typedef NodeDefinition
+ * @property {string} title
+ * @property {string} group
+ * @property {string[]} tags
+ */
+
 class PromptNodeEditor {
 
     /**
@@ -100,6 +137,12 @@ class PromptNodeEditor {
         this.graph = new LGraph();
         /**@type {import("litegraph.js").LGraphCanvas} */
         this.canvas = new LGraphCanvas(canvasId, this.graph);
+        
+        // @ts-ignore config に型がない
+        this.graph.config.align_to_grid = true;
+        this.canvas.render_connections_border = false;
+
+        new CanvasResizeObserver(this.canvas).observe();
     }
 
     getOutputPrompt() {
@@ -111,7 +154,77 @@ class PromptNodeEditor {
         // @ts-ignore
         return this.graph.findNodesByType("prompt/OutputNode")[0]
     }
+
+    /**
+     * 
+     * @param {NodeDefinition[]} definitions 
+     */
+    load(definitions) {
+        this.graph.clear();
+
+        /** @type {Map<string, NodeDefinition[]>} */
+        const categoryMap = definitions.reduce((m, def) => {
+            if (!m.has(def.group)) m.set(def.group, []);
+            m.get(def.group).push(def);
+            return m;
+        }, new Map());
+        // const categoryMap = new Map();
+        // for (const def of definitions) {
+        //     if (!categoryMap.has(def.group)) categoryMap.set(def.group, []);
+        //     categoryMap.get(def.group).push(def);
+        // }
+
+        const categories = [...categoryMap.keys()];
+        const maxChainLength = Math.max(...[...categoryMap.values()].map(d => d.length), 0);
+
+        /**@type {OutputNode} */
+        const outputNode = LiteGraph.createNode("prompt/OutputNode");
+        for (const cat of categories) {
+            outputNode.addInput(cat, "string");
+        }
+        outputNode.pos = [50 + maxChainLength * 280, 100];
+        this.graph.add(outputNode);
+
+        let categoryIndex = 0;
+        for (const [, defs] of categoryMap) {
+            const nodes = [];
+            for (let i = 0; i < defs.length; i++) {
+                /**@type {PromptNode} */
+                const node = LiteGraph.createNode("prompt/PromptNode");
+                node.title = defs[i].title;
+                node.addTags(defs[i].tags);
+                node.pos = [50 + i * 280, 100 + categoryIndex * 200];
+                this.graph.add(node);
+                nodes.push(node);
+            }
+            for (let i = 0; i < nodes.length - 1; i++) {
+                nodes[i].connect(0, nodes[i + 1], 0);
+            }
+            if (nodes.length > 0) {
+                nodes[nodes.length - 1].connect(0, outputNode, categoryIndex);
+            }
+            categoryIndex++;
+        }
+
+        this.graph.start();
+    }
 }
+
+/**
+ * 
+ * @returns {Promise<NodeDefinition[]>}
+ */
+const getNodeDefinitions = () => {
+    return new Promise((resolve, reject) => {
+        fetch("/sd-webui-prompt-node-editor/node-definitions")
+            .then(r => r.json())
+            .then(defs => resolve(defs))
+            .catch(err => {
+                console.error("[PNE] Failed to load node definitions:", err);
+                reject(err);
+            });
+    });
+};
 
 onUiLoaded(() => {
     /**@type {HTMLCanvasElement | null} */
@@ -122,44 +235,21 @@ onUiLoaded(() => {
         return;
     }
 
+    const editor = new PromptNodeEditor("#prompt-node-editor-canvas");
+
     initLiteGraph();
 
-    const graph = new LGraph();
-    const canvas = new LGraphCanvas("#prompt-node-editor-canvas", graph);
+    setupButtons(editor);
 
-    // @ts-ignore config に型がない
-    graph.config.align_to_grid = true;
-    canvas.render_connections_border = false;
-
-    // TODO: PromptNodeEditor で置き換える
-    window._pneGetPrompt = () => graph.findNodesByType("prompt/OutputNode")[0]?._prompt ?? "";
-
-    // TODO: 動的リサイズの処理だけ切り出してリファクタ
-    // 親要素のサイズ変化に追従してcanvasを動的リサイズ
-    const CANVAS_HEIGHT = 700;
-    canvasEl.height = CANVAS_HEIGHT;
-    const container = canvasEl.parentElement;
-    if (container) {
-        const syncSize = () => {
-            const w = container.clientWidth;
-            if (w > 0 && canvasEl.width !== w) {
-                canvasEl.width = w;
-                canvas.resize(w, CANVAS_HEIGHT);
-            }
-        };
-        syncSize();
-        new ResizeObserver(syncSize).observe(container);
-    }
-
-    setupButtons();
-
-    fetch("/sd-webui-prompt-node-editor/node-definitions")
-        .then(r => r.json())
-        .then(defs => buildAmdStartGraph(graph, defs))
-        .catch(err => console.error("[PNE] Failed to load node definitions:", err));
+    getNodeDefinitions()
+        .then(defs => editor.load(defs))
 });
 
-function setupButtons() {
+/**
+ * 
+ * @param {PromptNodeEditor} editor 
+ */
+function setupButtons(editor) {
     const copyBtn = document.getElementById("pne-copy-btn");
     const txt2imgBtn = document.getElementById("pne-send-txt2img-btn");
     const img2imgBtn = document.getElementById("pne-send-img2img-btn");
@@ -168,7 +258,7 @@ function setupButtons() {
         console.warn("[PNE] Button #pne-copy-btn not found.");
     } else {
         copyBtn.addEventListener("click", () => {
-            const prompt = window._pneGetPrompt();
+            const prompt = editor.getOutputPrompt();
             navigator.clipboard.writeText(prompt).then(() => {
                 const original = copyBtn.textContent;
                 copyBtn.textContent = "✅ Copied!";
@@ -177,9 +267,9 @@ function setupButtons() {
         });
     }
 
-    /** @param {string} selector */
+    /** @param {"#txt2img_prompt textarea" | "#img2img_prompt textarea"} selector */
     function sendPromptTo(selector) {
-        const prompt = window._pneGetPrompt();
+        const prompt = editor.getOutputPrompt();
         const textarea = gradioApp().querySelector(selector);
         if (!textarea) {
             console.error("[PNE] Textarea not found:", selector);
@@ -207,53 +297,4 @@ function setupButtons() {
             sendPromptTo("#img2img_prompt textarea");
         });
     }
-}
-
-/**
- * @param {import("litegraph.js").LGraph} graph
- * @param {{ title: string, group: string, tags: string[] }[]} definitions
- */
-async function buildAmdStartGraph(graph, definitions) {
-    graph.clear();
-
-    /** @type {Map<string, { title: string, group: string, tags: string[] }[]>} */
-    const categoryMap = new Map();
-    for (const def of definitions) {
-        if (!categoryMap.has(def.group)) categoryMap.set(def.group, []);
-        categoryMap.get(def.group).push(def);
-    }
-
-    const categories = [...categoryMap.keys()];
-    const maxChainLength = Math.max(...[...categoryMap.values()].map(d => d.length), 0);
-
-    /**@type {OutputNode} */
-    const outputNode = LiteGraph.createNode("prompt/OutputNode");
-    for (const cat of categories) {
-        outputNode.addInput(cat, "string");
-    }
-    outputNode.pos = [50 + maxChainLength * 280, 100];
-    graph.add(outputNode);
-
-    let categoryIndex = 0;
-    for (const [, defs] of categoryMap) {
-        const nodes = [];
-        for (let i = 0; i < defs.length; i++) {
-            /**@type {PromptNode} */
-            const node = LiteGraph.createNode("prompt/PromptNode");
-            node.title = defs[i].title;
-            node.addTags(defs[i].tags);
-            node.pos = [50 + i * 280, 100 + categoryIndex * 200];
-            graph.add(node);
-            nodes.push(node);
-        }
-        for (let i = 0; i < nodes.length - 1; i++) {
-            nodes[i].connect(0, nodes[i + 1], 0);
-        }
-        if (nodes.length > 0) {
-            nodes[nodes.length - 1].connect(0, outputNode, categoryIndex);
-        }
-        categoryIndex++;
-    }
-
-    graph.start();
 }
