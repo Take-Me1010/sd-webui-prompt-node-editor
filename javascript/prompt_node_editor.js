@@ -11,20 +11,19 @@ class PromptNode extends LGraphNode {
         /**
          * HACK: 型宣言のみ行う。
          * @type {import("litegraph.js").IToggleWidget[]}
-        */
-        this.widgets
+         */
+        this.widgets;
     }
 
     /** @param {string[]} tags */
     addTags(tags) {
         for (const tag of tags) {
-            this.addWidget("toggle", tag, false, () => {
-            });
+            this.addWidget("toggle", tag, false, () => {});
         }
     }
 
     /**
-     * 
+     *
      * @returns {import("litegraph.js").Vector2}
      */
     computeSize() {
@@ -34,12 +33,13 @@ class PromptNode extends LGraphNode {
 
     onExecute() {
         const input = this.getInputData(0) ?? "";
-        const selected = this.widgets
-            .filter(w => w.value)
-            .map(w => w.name);
-        const output = selected.length > 0
-            ? (input ? input + ", " + selected.join(", ") : selected.join(", "))
-            : input;
+        const selected = this.widgets.filter((w) => w.value).map((w) => w.name);
+        const output =
+            selected.length > 0
+                ? input
+                    ? input + ", " + selected.join(", ")
+                    : selected.join(", ")
+                : input;
         this.setOutputData(0, output);
     }
 }
@@ -70,10 +70,13 @@ class OutputNode extends LGraphNode {
         this._prompt = prompt;
         this._widget.value = prompt;
 
-        const textarea = gradioApp().querySelector("#pne-prompt-output textarea");
+        const textarea = gradioApp().querySelector(
+            "#pne-prompt-output textarea"
+        );
         if (textarea) {
             const setter = Object.getOwnPropertyDescriptor(
-                window.HTMLTextAreaElement.prototype, "value"
+                window.HTMLTextAreaElement.prototype,
+                "value"
             )?.set;
             if (setter) setter.call(textarea, prompt);
             textarea.dispatchEvent(new Event("input", { bubbles: true }));
@@ -86,13 +89,12 @@ const initLiteGraph = () => {
     LiteGraph.registerNodeType("prompt/OutputNode", OutputNode);
 
     LiteGraph.NODE_TITLE_COLOR = "#ccc";
-}
+};
 
 class CanvasResizeObserver {
-
     static CANVAS_HEIGHT = 700;
     /**
-     * 
+     *
      * @param {import("litegraph.js").LGraphCanvas} canvas
      */
     constructor(canvas) {
@@ -127,7 +129,6 @@ class CanvasResizeObserver {
  */
 
 class PromptNodeEditor {
-
     /**
      * @argument {string} canvasId
      */
@@ -136,7 +137,7 @@ class PromptNodeEditor {
         this.graph = new LGraph();
         /**@type {import("litegraph.js").LGraphCanvas} */
         this.canvas = new LGraphCanvas(canvasId, this.graph);
-        
+
         // @ts-ignore config に型がない
         this.graph.config.align_to_grid = true;
         this.canvas.render_connections_border = false;
@@ -151,15 +152,14 @@ class PromptNodeEditor {
     /**@returns {OutputNode}*/
     #findOutputNode() {
         // @ts-ignore
-        return this.graph.findNodesByType("prompt/OutputNode")[0]
+        return this.graph.findNodesByType("prompt/OutputNode")[0];
     }
 
-    /**
-     * 
-     * @param {NodeDefinition[]} definitions 
-     */
-    load(definitions) {
+    async load() {
         this.graph.clear();
+
+        const param = { fileStem: this.#getSelectedFileStem() };
+        const definitions = await getNodeDefinitions(param);
 
         /** @type {Map<string, NodeDefinition[]>} */
         const categoryMap = definitions.reduce((m, def) => {
@@ -169,7 +169,10 @@ class PromptNodeEditor {
         }, new Map());
 
         const categories = [...categoryMap.keys()];
-        const maxChainLength = Math.max(...[...categoryMap.values()].map(d => d.length), 0);
+        const maxChainLength = Math.max(
+            ...[...categoryMap.values()].map((d) => d.length),
+            0
+        );
 
         /**@type {OutputNode} */
         const outputNode = LiteGraph.createNode("prompt/OutputNode");
@@ -202,18 +205,39 @@ class PromptNodeEditor {
 
         this.graph.start();
     }
+
+    #getSelectedFileStem() {
+        const input = this.#findFileSelectorInput();
+        const stem = input.value.split(".").slice(0, -1).join("."); // remove file extension
+        return stem;
+    }
+
+    /**@returns {HTMLInputElement} */
+    #findFileSelectorInput() {
+        const selector = gradioApp().querySelector("#pne-file-selector input");
+        if (!selector) {
+            console.error("[PNE] File selector input not found.");
+            throw new Error("File selector input not found");
+        }
+        // @ts-ignore
+        return selector;
+    }
 }
 
 /**
- * 
+ * @param {{fileStem: string}} params
  * @returns {Promise<NodeDefinition[]>}
  */
-const getNodeDefinitions = () => {
+const getNodeDefinitions = (params) => {
     return new Promise((resolve, reject) => {
-        fetch("/sd-webui-prompt-node-editor/node-definitions")
-            .then(r => r.json())
-            .then(defs => resolve(defs))
-            .catch(err => {
+        let url = "/sd-webui-prompt-node-editor/node-definitions";
+        if (params.fileStem) {
+            url += `?file=${encodeURIComponent(params.fileStem)}`;
+        }
+        fetch(url)
+            .then((r) => r.json())
+            .then((defs) => resolve(defs))
+            .catch((err) => {
                 console.error("[PNE] Failed to load node definitions:", err);
                 reject(err);
             });
@@ -225,7 +249,9 @@ onUiLoaded(() => {
     // @ts-ignore 実際に canvas なので
     const canvasEl = document.getElementById("prompt-node-editor-canvas");
     if (!canvasEl) {
-        console.error("[PNE] Canvas element #prompt-node-editor-canvas not found.");
+        console.error(
+            "[PNE] Canvas element #prompt-node-editor-canvas not found."
+        );
         return;
     }
 
@@ -235,31 +261,53 @@ onUiLoaded(() => {
 
     setupButtons(editor);
 
-    getNodeDefinitions()
-        .then(defs => editor.load(defs))
+    void editor.load();
 });
 
-/**
- * 
- * @param {PromptNodeEditor} editor 
- */
-function setupButtons(editor) {
+/**@param {PromptNodeEditor} editor */
+const CopyButton = (editor) => {
     const copyBtn = document.getElementById("pne-copy-btn");
-    const txt2imgBtn = document.getElementById("pne-send-txt2img-btn");
-    const img2imgBtn = document.getElementById("pne-send-img2img-btn");
-
     if (!copyBtn) {
         console.warn("[PNE] Button #pne-copy-btn not found.");
-    } else {
-        copyBtn.addEventListener("click", () => {
-            const prompt = editor.getOutputPrompt();
-            navigator.clipboard.writeText(prompt).then(() => {
-                const original = copyBtn.textContent;
-                copyBtn.textContent = "✅ Copied!";
-                setTimeout(() => { copyBtn.textContent = original; }, 1500);
-            });
-        });
+        return;
     }
+
+    copyBtn.addEventListener("click", () => {
+        const prompt = editor.getOutputPrompt();
+        navigator.clipboard.writeText(prompt).then(() => {
+            const original = copyBtn.textContent;
+            copyBtn.textContent = "✅ Copied!";
+            setTimeout(() => {
+                copyBtn.textContent = original;
+            }, 1500);
+        });
+    });
+};
+
+/**@param {PromptNodeEditor} editor */
+const FileLoadButton = (editor) => {
+    const fileApplyBtn = document.getElementById("pne-file-load-btn");
+    if (!fileApplyBtn) {
+        console.warn("[PNE] Button #pne-file-load-btn not found.");
+        return;
+    }
+
+    fileApplyBtn.setAttribute("title", "load file");
+
+    fileApplyBtn.addEventListener("click", () => {
+        editor.load();
+    });
+};
+
+/**
+ *
+ * @param {PromptNodeEditor} editor
+ */
+function setupButtons(editor) {
+    CopyButton(editor);
+    FileLoadButton(editor);
+    const txt2imgBtn = document.getElementById("pne-send-txt2img-btn");
+    const img2imgBtn = document.getElementById("pne-send-img2img-btn");
 
     /** @param {"#txt2img_prompt textarea" | "#img2img_prompt textarea"} selector */
     function sendPromptTo(selector) {
@@ -270,9 +318,11 @@ function setupButtons(editor) {
             return;
         }
         const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-            window.HTMLTextAreaElement.prototype, "value"
+            window.HTMLTextAreaElement.prototype,
+            "value"
         )?.set;
-        if (nativeInputValueSetter) nativeInputValueSetter.call(textarea, prompt);
+        if (nativeInputValueSetter)
+            nativeInputValueSetter.call(textarea, prompt);
         textarea.dispatchEvent(new Event("input", { bubbles: true }));
     }
 
