@@ -11,20 +11,19 @@ class PromptNode extends LGraphNode {
         /**
          * HACK: 型宣言のみ行う。
          * @type {import("litegraph.js").IToggleWidget[]}
-        */
-        this.widgets
+         */
+        this.widgets;
     }
 
     /** @param {string[]} tags */
     addTags(tags) {
         for (const tag of tags) {
-            this.addWidget("toggle", tag, false, () => {
-            });
+            this.addWidget("toggle", tag, false, () => {});
         }
     }
 
     /**
-     * 
+     *
      * @returns {import("litegraph.js").Vector2}
      */
     computeSize() {
@@ -34,12 +33,13 @@ class PromptNode extends LGraphNode {
 
     onExecute() {
         const input = this.getInputData(0) ?? "";
-        const selected = this.widgets
-            .filter(w => w.value)
-            .map(w => w.name);
-        const output = selected.length > 0
-            ? (input ? input + ", " + selected.join(", ") : selected.join(", "))
-            : input;
+        const selected = this.widgets.filter((w) => w.value).map((w) => w.name);
+        const output =
+            selected.length > 0
+                ? input
+                    ? input + ", " + selected.join(", ")
+                    : selected.join(", ")
+                : input;
         this.setOutputData(0, output);
     }
 }
@@ -70,10 +70,13 @@ class OutputNode extends LGraphNode {
         this._prompt = prompt;
         this._widget.value = prompt;
 
-        const textarea = gradioApp().querySelector("#pne-prompt-output textarea");
+        const textarea = gradioApp().querySelector(
+            "#pne-prompt-output textarea"
+        );
         if (textarea) {
             const setter = Object.getOwnPropertyDescriptor(
-                window.HTMLTextAreaElement.prototype, "value"
+                window.HTMLTextAreaElement.prototype,
+                "value"
             )?.set;
             if (setter) setter.call(textarea, prompt);
             textarea.dispatchEvent(new Event("input", { bubbles: true }));
@@ -86,13 +89,12 @@ const initLiteGraph = () => {
     LiteGraph.registerNodeType("prompt/OutputNode", OutputNode);
 
     LiteGraph.NODE_TITLE_COLOR = "#ccc";
-}
+};
 
 class CanvasResizeObserver {
-
     static CANVAS_HEIGHT = 700;
     /**
-     * 
+     *
      * @param {import("litegraph.js").LGraphCanvas} canvas
      */
     constructor(canvas) {
@@ -127,7 +129,6 @@ class CanvasResizeObserver {
  */
 
 class PromptNodeEditor {
-
     /**
      * @argument {string} canvasId
      */
@@ -136,7 +137,7 @@ class PromptNodeEditor {
         this.graph = new LGraph();
         /**@type {import("litegraph.js").LGraphCanvas} */
         this.canvas = new LGraphCanvas(canvasId, this.graph);
-        
+
         // @ts-ignore config に型がない
         this.graph.config.align_to_grid = true;
         this.canvas.render_connections_border = false;
@@ -151,7 +152,7 @@ class PromptNodeEditor {
     /**@returns {OutputNode}*/
     #findOutputNode() {
         // @ts-ignore
-        return this.graph.findNodesByType("prompt/OutputNode")[0]
+        return this.graph.findNodesByType("prompt/OutputNode")[0];
     }
 
     async load() {
@@ -168,7 +169,10 @@ class PromptNodeEditor {
         }, new Map());
 
         const categories = [...categoryMap.keys()];
-        const maxChainLength = Math.max(...[...categoryMap.values()].map(d => d.length), 0);
+        const maxChainLength = Math.max(
+            ...[...categoryMap.values()].map((d) => d.length),
+            0
+        );
 
         /**@type {OutputNode} */
         const outputNode = LiteGraph.createNode("prompt/OutputNode");
@@ -221,7 +225,7 @@ class PromptNodeEditor {
 }
 
 /**
- * @param {{fileStem?: string}} params
+ * @param {{fileStem: string}} params
  * @returns {Promise<NodeDefinition[]>}
  */
 const getNodeDefinitions = (params) => {
@@ -231,9 +235,9 @@ const getNodeDefinitions = (params) => {
             url += `?file=${encodeURIComponent(params.fileStem)}`;
         }
         fetch(url)
-            .then(r => r.json())
-            .then(defs => resolve(defs))
-            .catch(err => {
+            .then((r) => r.json())
+            .then((defs) => resolve(defs))
+            .catch((err) => {
                 console.error("[PNE] Failed to load node definitions:", err);
                 reject(err);
             });
@@ -245,7 +249,9 @@ onUiLoaded(() => {
     // @ts-ignore 実際に canvas なので
     const canvasEl = document.getElementById("prompt-node-editor-canvas");
     if (!canvasEl) {
-        console.error("[PNE] Canvas element #prompt-node-editor-canvas not found.");
+        console.error(
+            "[PNE] Canvas element #prompt-node-editor-canvas not found."
+        );
         return;
     }
 
@@ -271,10 +277,12 @@ const CopyButton = (editor) => {
         navigator.clipboard.writeText(prompt).then(() => {
             const original = copyBtn.textContent;
             copyBtn.textContent = "✅ Copied!";
-            setTimeout(() => { copyBtn.textContent = original; }, 1500);
+            setTimeout(() => {
+                copyBtn.textContent = original;
+            }, 1500);
         });
     });
-}
+};
 
 /**@param {PromptNodeEditor} editor */
 const FileLoadButton = (editor) => {
@@ -285,22 +293,22 @@ const FileLoadButton = (editor) => {
     }
 
     fileApplyBtn.setAttribute("title", "load file");
-    
+
     fileApplyBtn.addEventListener("click", () => {
         editor.load();
     });
-}
+};
 
 /**
- * 
- * @param {PromptNodeEditor} editor 
+ *
+ * @param {PromptNodeEditor} editor
  */
 function setupButtons(editor) {
     CopyButton(editor);
     FileLoadButton(editor);
     const txt2imgBtn = document.getElementById("pne-send-txt2img-btn");
     const img2imgBtn = document.getElementById("pne-send-img2img-btn");
-    
+
     /** @param {"#txt2img_prompt textarea" | "#img2img_prompt textarea"} selector */
     function sendPromptTo(selector) {
         const prompt = editor.getOutputPrompt();
@@ -310,12 +318,14 @@ function setupButtons(editor) {
             return;
         }
         const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
-            window.HTMLTextAreaElement.prototype, "value"
+            window.HTMLTextAreaElement.prototype,
+            "value"
         )?.set;
-        if (nativeInputValueSetter) nativeInputValueSetter.call(textarea, prompt);
+        if (nativeInputValueSetter)
+            nativeInputValueSetter.call(textarea, prompt);
         textarea.dispatchEvent(new Event("input", { bubbles: true }));
     }
-    
+
     if (!txt2imgBtn) {
         console.warn("[PNE] Button #pne-send-txt2img-btn not found.");
     } else {
@@ -323,7 +333,7 @@ function setupButtons(editor) {
             sendPromptTo("#txt2img_prompt textarea");
         });
     }
-    
+
     if (!img2imgBtn) {
         console.warn("[PNE] Button #pne-send-img2img-btn not found.");
     } else {
