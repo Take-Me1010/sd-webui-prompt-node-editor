@@ -8,7 +8,7 @@ from fastapi.responses import JSONResponse
 
 import modules.infotext_utils as parameters_copypaste
 from modules import script_callbacks
-from modules.ui_common import create_refresh_button
+from modules.ui_common import ToolButton, create_refresh_button
 
 class TagsGroup(tp.TypedDict):
     title: str
@@ -65,8 +65,8 @@ def load_node_definitions(file_stem: str | None = None) -> list[TagsGroup]:
 
 def on_app_started(_gr_app, app: FastAPI):
     @app.get("/sd-webui-prompt-node-editor/node-definitions")
-    def node_definitions(file_stem: str | None = None):
-        return JSONResponse(content=load_node_definitions(file_stem))
+    def node_definitions(file: str):
+        return JSONResponse(content=load_node_definitions(file))
 
 class PromptNodeEditor:
     def __init__(self):
@@ -98,13 +98,18 @@ class PromptNodeEditor:
                     parameters_copypaste.bind_buttons(buttons, None, prompt_output)
                     
                     with gr.Row():
-                        self.file_selector = gr.Dropdown(
+                        file_selector = gr.Dropdown(
                             choices=self.files,
                             label="Node Definition File",
                             elem_id="pne-file-selector",
+                            value=self.files[0],
+                        )
+                        ToolButton(
+                            value="📋",
+                            elem_id="pne-file-load-btn"
                         )
                         create_refresh_button(
-                            self.file_selector,
+                            file_selector,
                             self.load_tag_files,
                             lambda: {"choices": self.files},
                             "pne-file-selector-refresh",
