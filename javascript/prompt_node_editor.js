@@ -154,12 +154,11 @@ class PromptNodeEditor {
         return this.graph.findNodesByType("prompt/OutputNode")[0]
     }
 
-    /**
-     * 
-     * @param {NodeDefinition[]} definitions 
-     */
-    load(definitions) {
+    async load() {
         this.graph.clear();
+
+        const param = { fileStem: this.#getSelectedFileStem() };
+        const definitions = await getNodeDefinitions(param);
 
         /** @type {Map<string, NodeDefinition[]>} */
         const categoryMap = definitions.reduce((m, def) => {
@@ -202,15 +201,36 @@ class PromptNodeEditor {
 
         this.graph.start();
     }
+
+    #getSelectedFileStem() {
+        const input = this.#findFileSelectorInput();
+        const stem = input.value.split(".").slice(0, -1).join("."); // remove file extension
+        return stem;
+    }
+
+    /**@returns {HTMLInputElement} */
+    #findFileSelectorInput() {
+        const selector = gradioApp().querySelector("#pne-file-selector input");
+        if (!selector) {
+            console.error("[PNE] File selector input not found.");
+            throw new Error("File selector input not found");
+        }
+        // @ts-ignore
+        return selector;
+    }
 }
 
 /**
- * 
+ * @param {{fileStem?: string}} params
  * @returns {Promise<NodeDefinition[]>}
  */
-const getNodeDefinitions = () => {
+const getNodeDefinitions = (params) => {
     return new Promise((resolve, reject) => {
-        fetch("/sd-webui-prompt-node-editor/node-definitions")
+        let url = "/sd-webui-prompt-node-editor/node-definitions";
+        if (params.fileStem) {
+            url += `?file=${encodeURIComponent(params.fileStem)}`;
+        }
+        fetch(url)
             .then(r => r.json())
             .then(defs => resolve(defs))
             .catch(err => {
@@ -235,32 +255,52 @@ onUiLoaded(() => {
 
     setupButtons(editor);
 
-    getNodeDefinitions()
-        .then(defs => editor.load(defs))
+    void editor.load();
 });
+
+/**@param {PromptNodeEditor} editor */
+const CopyButton = (editor) => {
+    const copyBtn = document.getElementById("pne-copy-btn");
+    if (!copyBtn) {
+        console.warn("[PNE] Button #pne-copy-btn not found.");
+        return;
+    }
+
+    copyBtn.addEventListener("click", () => {
+        const prompt = editor.getOutputPrompt();
+        navigator.clipboard.writeText(prompt).then(() => {
+            const original = copyBtn.textContent;
+            copyBtn.textContent = "✅ Copied!";
+            setTimeout(() => { copyBtn.textContent = original; }, 1500);
+        });
+    });
+}
+
+/**@param {PromptNodeEditor} editor */
+const FileLoadButton = (editor) => {
+    const fileApplyBtn = document.getElementById("pne-file-load-btn");
+    if (!fileApplyBtn) {
+        console.warn("[PNE] Button #pne-file-load-btn not found.");
+        return;
+    }
+
+    fileApplyBtn.setAttribute("title", "load file");
+    
+    fileApplyBtn.addEventListener("click", () => {
+        editor.load();
+    });
+}
 
 /**
  * 
  * @param {PromptNodeEditor} editor 
  */
 function setupButtons(editor) {
-    const copyBtn = document.getElementById("pne-copy-btn");
+    CopyButton(editor);
+    FileLoadButton(editor);
     const txt2imgBtn = document.getElementById("pne-send-txt2img-btn");
     const img2imgBtn = document.getElementById("pne-send-img2img-btn");
-
-    if (!copyBtn) {
-        console.warn("[PNE] Button #pne-copy-btn not found.");
-    } else {
-        copyBtn.addEventListener("click", () => {
-            const prompt = editor.getOutputPrompt();
-            navigator.clipboard.writeText(prompt).then(() => {
-                const original = copyBtn.textContent;
-                copyBtn.textContent = "✅ Copied!";
-                setTimeout(() => { copyBtn.textContent = original; }, 1500);
-            });
-        });
-    }
-
+    
     /** @param {"#txt2img_prompt textarea" | "#img2img_prompt textarea"} selector */
     function sendPromptTo(selector) {
         const prompt = editor.getOutputPrompt();
@@ -275,7 +315,7 @@ function setupButtons(editor) {
         if (nativeInputValueSetter) nativeInputValueSetter.call(textarea, prompt);
         textarea.dispatchEvent(new Event("input", { bubbles: true }));
     }
-
+    
     if (!txt2imgBtn) {
         console.warn("[PNE] Button #pne-send-txt2img-btn not found.");
     } else {
@@ -283,7 +323,7 @@ function setupButtons(editor) {
             sendPromptTo("#txt2img_prompt textarea");
         });
     }
-
+    
     if (!img2imgBtn) {
         console.warn("[PNE] Button #pne-send-img2img-btn not found.");
     } else {
