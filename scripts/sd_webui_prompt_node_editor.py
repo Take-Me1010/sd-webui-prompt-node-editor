@@ -24,6 +24,15 @@ def tags_files():
     for path in TAGS_DIR.rglob("*.yml"):
         yield path
 
+def parse_include_statement(value: str | list[str]) -> list[Path]:
+    if isinstance(value, str):
+        value = [value]
+    result: list[Path] = []
+    for f in tags_files():
+        for item in value:
+            if f.name == item:
+                result.append(f)
+    return result
 
 def parse_tags_file(path: Path) -> list[TagsGroup]:
     with path.open(encoding="utf-8") as f:
@@ -31,6 +40,12 @@ def parse_tags_file(path: Path) -> list[TagsGroup]:
 
     result: list[TagsGroup] = []
     for top_key, value in data.items():
+        if top_key == "includes":
+            groups = [parse_tags_file(path) for path in parse_include_statement(value)]
+            for tags in groups:
+                result.extend(tags)
+            continue
+
         if isinstance(value, list):
             result.append({"title": top_key, "group": top_key, "tags": value})
         elif isinstance(value, dict):
@@ -75,7 +90,7 @@ class PromptNodeEditor:
     def load_tag_files(self):
         self.files = [path.name for path in tags_files()]
     
-    def ui(self):
+    def ui(self) -> list[tuple[gr.Blocks, str, str]]:
         with gr.Blocks(analytics_enabled=False) as block:
             with gr.Row():
                 with gr.Column(scale=1, elem_id="pne-canvas-col"):
